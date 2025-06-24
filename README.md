@@ -91,4 +91,10 @@ Aplikasi ini menyediakan antarmuka grafis yang sederhana dan mudah digunakan. Be
 
 ---
 
+Collaborator Proyek: 
+1. Ariq Mahira Chandra (2310511009)
+2. Muhammad Evan Althafy Marhian (2310511003)
+
+---
+
 Terima kasih telah menggunakan Sistem Parkir Gambir!
