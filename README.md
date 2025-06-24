@@ -95,8 +95,8 @@ Collaborator Proyek:
 1. Ariq Mahira Chandra - bababubu724 (2310511009)
 2. Muhammad Evan Althafy Marhian - Vann25 / Bauk006 (2310511003)
 3. Rangga Novbrian Syawal Putra Ananto - rangganovb (2310511004)
-4. Pandu Nugraha Saputra - Panduukece123
+4. Pandu Nugraha Saputra - Panduukece123 (2310511029)
 
 ---
 
-Terima kasih telah menggunakan Sistem Parkir Gambir!
+Terima kasih telah menggunakan Sistem Parkir KAI Gambir!
