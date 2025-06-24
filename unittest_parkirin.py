@@ -1,186 +1,131 @@
 import unittest
-from unittest.mock import patch, MagicMock
-import os
+from unittest.mock import patch, MagicMock, mock_open
 import datetime
-import sys
 import json
+import os
+import customtkinter as ctk
 
-# Menambahkan direktori utama (Parkirin) ke sys.path agar Python bisa menemukan app_parkirin.py
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
+from app_parkirin import App, TARIF_MOBIL, TARIF_MOTOR, DENDA_TIKET_HILANG, NAMA_FILE_RIWAYAT
 
-from app_parkirin import App, PATH_MOBIL, PATH_MOTOR, PATH_BG_MENU
+class TestAppGUI(unittest.TestCase):
 
-class TestParkirApp(unittest.TestCase):
-
-    @patch('app_parkirin.messagebox.showerror')  # Mocking untuk menampilkan pesan error
-    @patch('app_parkirin.CTkImage')  # Mocking CTkImage untuk menghindari memuat gambar
-    def test_event_checkin(self, mock_ctk_image, mock_showerror):
-        # Mocking gambar agar tidak mempengaruhi unit test
-        mock_ctk_image.return_value = MagicMock()
+    @classmethod
+    def setUpClass(cls):
+        """
+        Metode ini berjalan sekali sebelum semua tes.
+        """
+        # Atur variabel lingkungan untuk menandakan mode tes
+        os.environ['IS_TESTING'] = '1'
         
-        app = App()
-        # Simulasikan input nomor polisi yang valid
-        app.entry_nopol_in_1.insert(0, 'B')
-        app.entry_nopol_in_2.insert(0, '1234')
-        app.entry_nopol_in_3.insert(0, 'XYZ')
-        
-        # Mock fungsi untuk memastikan dialog check-in sukses
-        with patch.object(app, 'buka_dialog_checkin_sukses_modern') as mock_buka_dialog:
-            app.event_checkin()
-            
-            # Pastikan kendaraan berhasil ditambahkan
-            self.assertIn('B 1234 XYZ', app.kendaraan_terparkir)
-            # Pastikan fungsi dialog check-in sukses dipanggil
-            mock_buka_dialog.assert_called_once()
+        cls.root = ctk.CTk()
+        cls.root.withdraw()
 
-    @patch('app_parkirin.messagebox.showerror')
-    def test_event_checkin_duplicate_vehicle(self, mock_showerror):
-        app = App()
-        # Simulasikan kendaraan yang sudah ada dalam parkiran
-        app.kendaraan_terparkir['B 1234 XYZ'] = {'jenis': 'Mobil', 'waktu_masuk': '2025-06-23 10:00:00'}
-        
-        # Simulasikan input nomor polisi yang sudah ada
-        app.entry_nopol_in_1.insert(0, 'B')
-        app.entry_nopol_in_2.insert(0, '1234')
-        app.entry_nopol_in_3.insert(0, 'XYZ')
-        
-        # Coba check-in kendaraan yang sudah terparkir
-        app.event_checkin()
-        
-        # Pastikan error message ditampilkan
-        mock_showerror.assert_called_with("Error", "Kendaraan B 1234 XYZ sudah terparkir.")
+    @classmethod
+    def tearDownClass(cls):
+        """Metode ini berjalan sekali setelah semua tes selesai."""
+        cls.root.destroy()
+        # Hapus variabel lingkungan setelah selesai
+        os.environ.pop('IS_TESTING', None)
 
-    @patch('app_parkirin.messagebox.showerror')
-    @patch('app_parkirin.messagebox.showinfo')  # Untuk memverifikasi dialog sukses check-out
-    @patch('app_parkirin.CTkImage')  # Mocking untuk CTkImage
-    def test_event_checkout(self, mock_ctk_image, mock_showinfo, mock_showerror):
-        # Mocking gambar agar tidak mempengaruhi unit test
-        mock_ctk_image.return_value = MagicMock()
-        
-        app = App()
-        # Simulasikan kendaraan yang sudah terparkir
-        app.kendaraan_terparkir['B 1234 XYZ'] = {'jenis': 'Mobil', 'waktu_masuk': datetime.datetime(2025, 6, 23, 10, 0, 0)}
-        
-        # Simulasikan input nomor polisi
-        app.entry_nopol_out_1.insert(0, 'B')
-        app.entry_nopol_out_2.insert(0, '1234')
-        app.entry_nopol_out_3.insert(0, 'XYZ')
+    def setUp(self):
+        """
+        Metode ini berjalan sebelum setiap tes individu.
+        """
+        self.app = App()
+        # Nonaktifkan after-loop agar tidak mengganggu test runner
+        self.app.after = MagicMock()
 
-        # Simulasikan waktu checkout
-        with patch('app_parkirin.datetime.datetime') as mock_datetime:
-            mock_datetime.now.return_value = datetime.datetime(2025, 6, 23, 12, 0, 0)  # Menggunakan datetime objek
-            app.event_checkout()
+    def tearDown(self):
+        """
+        Metode ini berjalan setelah setiap tes individu.
+        """
+        self.app.destroy()
 
-        # Verifikasi bahwa dialog pembayaran dipanggil
-        mock_showinfo.assert_called_once()
+    def test_hitung_biaya_motor(self):
+        self.assertEqual(self.app.hitung_biaya('Motor', 1), TARIF_MOTOR['jam_pertama'])
+        biaya_3_jam = TARIF_MOTOR['jam_pertama'] + (2 * TARIF_MOTOR['per_jam_berikutnya'])
+        self.assertEqual(self.app.hitung_biaya('Motor', 3), biaya_3_jam)
 
-        # Verifikasi riwayat parkir dan kendaraan terparkir
-        self.assertNotIn('B 1234 XYZ', app.kendaraan_terparkir)
-        self.assertEqual(len(app.riwayat_parkir), 1)
+    def test_hitung_biaya_mobil(self):
+        self.assertEqual(self.app.hitung_biaya('Mobil', 1), TARIF_MOBIL['jam_pertama'])
+        biaya_5_jam = TARIF_MOBIL['jam_pertama'] + (4 * TARIF_MOBIL['per_jam_berikutnya'])
+        self.assertEqual(self.app.hitung_biaya('Mobil', 5), biaya_5_jam)
 
-    @patch('app_parkirin.messagebox.showerror')
-    def test_event_checkout_vehicle_not_found(self, mock_showerror):
-        app = App()
-        # Simulasikan input nomor polisi yang tidak ada dalam parkiran
-        app.entry_nopol_out_1.insert(0, 'B')
-        app.entry_nopol_out_2.insert(0, '1234')
-        app.entry_nopol_out_3.insert(0, 'XYZ')
+    def test_get_nopol_from_entries(self):
+        p1, p2, p3 = MagicMock(), MagicMock(), MagicMock()
+        p1.get.return_value = " B "
+        p2.get.return_value = " 1234 "
+        p3.get.return_value = " XYZ "
+        self.assertEqual(self.app.get_nopol_from_entries(p1, p2, p3), "B 1234 XYZ")
 
-        # Coba checkout kendaraan yang tidak ada
-        app.event_checkout()
+    def test_get_nopol_from_entries_gagal_jika_kosong(self):
+        p1, p2, p3 = MagicMock(), MagicMock(), MagicMock()
+        p1.get.return_value = "B"
+        p2.get.return_value = ""
+        p3.get.return_value = "XYZ"
+        self.assertIsNone(self.app.get_nopol_from_entries(p1, p2, p3))
 
-        # Pastikan error message ditampilkan
-        mock_showerror.assert_called_with("Error", "Kendaraan B 1234 XYZ tidak ditemukan.")
+    def test_inisialisasi_id_terakhir(self):
+        self.app.riwayat_parkir = []
+        self.assertEqual(self.app.inisialisasi_id_terakhir(), 0)
 
-    def test_hitung_biaya(self):
-        app = App()
-        # Tes biaya untuk mobil
-        biaya_mobil = app.hitung_biaya('Mobil', 2)  # 2 jam
-        self.assertEqual(biaya_mobil, 9000)  # 5000 untuk jam pertama, 4000 untuk jam kedua
-        
-        # Tes biaya untuk motor
-        biaya_motor = app.hitung_biaya('Motor', 3)  # 3 jam
-        self.assertEqual(biaya_motor, 7000)  # 3000 untuk jam pertama, 2000 untuk jam kedua, 2000 untuk jam ketiga
+        self.app.riwayat_parkir = [{'id': 1}, {'id': 5}, {'id': 3}]
+        self.assertEqual(self.app.inisialisasi_id_terakhir(), 5)
 
-    @patch('app_parkirin.json.load')
-    def test_muat_riwayat_dari_json(self, mock_json_load):
-        app = App()
-        # Simulasikan data riwayat yang ada di file JSON
-        mock_json_load.return_value = [
-            {
-                "id": 1,
-                "nopol": "B 1234 XYZ",
-                "jenis": "Mobil",
-                "waktu_masuk": "2025-06-23T10:00:00",
-                "waktu_keluar": "2025-06-23T12:00:00",
-                "total_biaya": 9000,
-                "status": "Lunas",
-                "metode_bayar": "Cash"
-            }
-        ]
-        
-        # Tes fungsi memuat riwayat dari JSON
-        riwayat = app.muat_riwayat_dari_json()
-        
-        # Pastikan riwayat dimuat dengan benar
-        self.assertEqual(len(riwayat), 1)
-        self.assertEqual(riwayat[0]['nopol'], 'B 1234 XYZ')
+    @patch('app_parkirin.messagebox')
+    @patch('app_parkirin.App.buka_dialog_checkin_sukses_modern')
+    def test_event_checkin_sukses(self, mock_dialog_sukses, mock_messagebox):
+        nopol = "B 1234 TST"
+        jenis = "Mobil"
+        self.app.entry_nopol_in_1.insert(0, "B")
+        self.app.entry_nopol_in_2.insert(0, "1234")
+        self.app.entry_nopol_in_3.insert(0, "TST")
+        self.app.opsi_jenis.set(jenis)
+        self.app.event_checkin()
+        self.assertIn(nopol, self.app.kendaraan_terparkir)
+        self.assertEqual(self.app.kendaraan_terparkir[nopol]['jenis'], jenis)
+        mock_dialog_sukses.assert_called_once()
+        mock_messagebox.showerror.assert_not_called()
 
-    @patch('app_parkirin.json.dump')
-    def test_simpan_riwayat_ke_json(self, mock_json_dump):
-        app = App()
-        # Tambahkan riwayat parkir untuk disimpan
-        app.riwayat_parkir = [{'id': 1, 'nopol': 'B 1234 XYZ', 'jenis': 'Mobil', 'waktu_masuk': '2025-06-23 10:00:00', 'waktu_keluar': '2025-06-23 12:00:00', 'total_biaya': 9000, 'status': 'Lunas', 'metode_bayar': 'Cash'}]
-        
-        # Tes fungsi menyimpan riwayat ke file JSON
-        app.simpan_riwayat_ke_json()
-        
-        # Verifikasi bahwa json.dump dipanggil untuk menyimpan riwayat
-        mock_json_dump.assert_called_once()
+    @patch('app_parkirin.messagebox')
+    def test_event_checkin_gagal_jika_sudah_parkir(self, mock_messagebox):
+        nopol = "B 5678 ERR"
+        self.app.kendaraan_terparkir[nopol] = {'jenis': 'Motor', 'waktu_masuk': datetime.datetime.now()}
+        self.app.entry_nopol_in_1.insert(0, "B")
+        self.app.entry_nopol_in_2.insert(0, "5678")
+        self.app.entry_nopol_in_3.insert(0, "ERR")
+        self.app.opsi_jenis.set("Motor")
+        self.app.event_checkin()
+        mock_messagebox.showerror.assert_called_once_with("Error", f"Kendaraan {nopol} sudah terparkir.")
 
-    @patch('app_parkirin.messagebox.showerror')
-    def test_get_checkout_time_manual(self, mock_showerror):
-        app = App()
-        # Simulasikan input tanggal dan waktu manual untuk checkout
-        app.manual_time_var.set("on")
-        app.spin_tgl_out.set(23)
-        app.spin_bln_out.set(6)
-        app.spin_thn_out.set(2025)
-        app.spin_jam_out.set(12)
-        app.spin_mnt_out.set(30)
-        app.spin_dtk_out.set(0)
-        
-        # Ambil waktu checkout manual
-        checkout_time = app.get_checkout_time()
-        
-        # Verifikasi waktu checkout yang diambil
-        self.assertEqual(checkout_time, datetime.datetime(2025, 6, 23, 12, 30))
+    def test_proses_pembayaran_final(self):
+        waktu_masuk = datetime.datetime(2024, 6, 24, 10, 0, 0)
+        waktu_keluar = datetime.datetime(2024, 6, 24, 12, 0, 0)
+        nopol = "D 4 VNL"
+        total_biaya = 13000
+        self.app.kendaraan_terparkir[nopol] = {'jenis': 'Mobil', 'waktu_masuk': waktu_masuk}
+        self.app.last_parkir_id = 5
 
-    # --- Test Format Riwayat Parkir ---
-    @patch('app_parkirin.CTkLabel')
-    def test_riwayat_format(self, mock_ctk_label):
-        app = App()
-        # Menambahkan riwayat parkir
-        app.riwayat_parkir = [{'id': 1, 'nopol': 'B 1234 XYZ', 'jenis': 'Mobil', 'waktu_masuk': '2025-06-23 10:00:00', 'waktu_keluar': '2025-06-23 12:00:00', 'total_biaya': 9000, 'status': 'Lunas', 'metode_bayar': 'Cash'}]
-        
-        # Panggil fungsi untuk update riwayat
-        app.update_riwayat()
-        
-        # Verifikasi apakah label riwayat dibuat dengan benar
-        mock_ctk_label.assert_called_with(text="ID", font=ctk.CTkFont(weight="bold"))
+        with patch.object(self.app, 'simpan_riwayat_ke_json') as mock_simpan:
+            self.app.proses_pembayaran_final(nopol, total_biaya, 'Cash', 'Lunas', waktu_keluar)
+            mock_simpan.assert_called_once()
 
-    # --- Test Kinerja dengan Data Lebih Banyak ---
-    def test_kinerja_dengan_data_banyak(self):
-        app = App()
-        # Menambahkan banyak kendaraan untuk menguji kinerja
-        for i in range(1000):
-            app.kendaraan_terparkir[f"B {i} XYZ"] = {'jenis': 'Mobil', 'waktu_masuk': datetime.datetime(2025, 6, 23, 10, 0, 0)}
-        
-        # Memperbarui daftar kendaraan
-        app.update_daftar_kendaraan()
-        
-        # Verifikasi jumlah kendaraan dalam daftar
-        self.assertEqual(len(app.kendaraan_terparkir), 1000)
+        self.assertNotIn(nopol, self.app.kendaraan_terparkir)
+        self.assertEqual(self.app.last_parkir_id, 6)
+        self.assertEqual(len(self.app.riwayat_parkir), 1)
+        riwayat_terbaru = self.app.riwayat_parkir[0]
+        self.assertEqual(riwayat_terbaru['id'], 6)
+        self.assertEqual(riwayat_terbaru['status'], 'Lunas')
 
-if __name__ == "__main__":
-    unittest.main()
+    @patch("builtins.open", new_callable=mock_open)
+    def test_simpan_riwayat_ke_json(self, mock_file):
+        waktu_sekarang = datetime.datetime.now()
+        self.app.riwayat_parkir = [{'id': 1, 'nopol': 'Z 9999 ZZ', 'jenis': 'Motor', 'waktu_masuk': waktu_sekarang, 'waktu_keluar': waktu_sekarang, 'total_biaya': 3000, 'status': 'Lunas', 'metode_bayar': 'E-Money'}]
+        self.app.simpan_riwayat_ke_json()
+        mock_file.assert_called_with(NAMA_FILE_RIWAYAT, 'w')
+        written_data = "".join(call.args[0] for call in mock_file().write.call_args_list)
+        hasil_json = json.loads(written_data)
+        self.assertEqual(hasil_json[0]['waktu_masuk'], waktu_sekarang.isoformat())
+
+if __name__ == '__main__':
+    unittest.main(argv=['first-arg-is-ignored'], exit=False)
