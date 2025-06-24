@@ -23,10 +23,10 @@ Prasyarat:
 Instalasi:
 
 1. Pastikan Python 3.x terinstal di sistem Anda.
-2. Install pustaka yang diperlukan dengan menjalankan perintah berikut:
+2. Install pustaka-pustaka yang diperlukan dengan menjalankan perintah berikut:
 
    ```
-   pip install customtkinter pillow
+   pip install -r requirements.txt
    
    ```
 
