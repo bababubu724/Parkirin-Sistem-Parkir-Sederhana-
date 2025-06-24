@@ -45,6 +45,15 @@ Cara Menjalankan Aplikasi:
    
    ```
 
+Cara Menjalankan Unit Test:
+
+1. Jalankan unit test dengan menjalankan script `unittest_parkirin.py`
+
+   ```
+   python -m unittest unittest_parkirin.py
+
+   ```
+
 Struktur Proyek:
 
 Sistem-Parkir-Gambir/
