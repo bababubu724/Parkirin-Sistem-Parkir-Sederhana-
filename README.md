@@ -56,7 +56,8 @@ Cara Menjalankan Unit Test:
 
 Struktur Proyek:
 
-Sistem-Parkir-Gambir/
+```
+Parkirin/
 │
 ├── assets/                   # Direktori untuk gambar kendaraan dan latar belakang menu
 │   ├── cctv_mobil.jpg        # Gambar mobil
@@ -71,6 +72,7 @@ Sistem-Parkir-Gambir/
 │
 └── history/                  # Direktori untuk menyimpan riwayat parkir dalam format JSON
     └── riwayat_parkir.json   # Riwayat parkir kendaraan
+```
 
 Penjelasan Kode:
 
